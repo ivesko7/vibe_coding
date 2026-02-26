@@ -1,113 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Faithful Matrix Code Rain</title>
-<style>
-    body, html {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        background-color: #000;
-        overflow: hidden;
-    }
-    canvas {
-        display: block;
-    }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faithful Matrix Code Rain</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
 </head>
+
 <body>
-<canvas id="matrix"></canvas>
+    <canvas id="matrix"></canvas>
 
-<script>
-    const canvas = document.getElementById('matrix');
-    const ctx = canvas.getContext('2d');
+    <script>
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
 
-    let w = canvas.width = window.innerWidth;
-    let h = canvas.height = window.innerHeight;
+        let w = canvas.width = window.innerWidth;
+        let h = canvas.height = window.innerHeight;
 
-    const fontSize = 16;
-    let cols = Math.floor(w / fontSize) + 1;
-    // Start the drops off-screen at random heights to simulate organic rain pouring in
-    let ypos = Array(cols).fill(0).map(() => Math.random() * -100 * fontSize);
+        const fontSize = 16;
+        let cols = Math.floor(w / fontSize) + 1;
+        let rows = Math.floor(h / fontSize) + 1;
 
-    // Authentic Matrix characters
-    // Includes half-width Katakana, Latin letters, and Numerals
-    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ';
-    const chars = charset.split('');
+        // Authentic Matrix characters + 6 styled upper and lowercase alphabet characters
+        const charset = '0123456789ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝZWMRKVmvzxwc';
+        const chars = charset.split('');
 
-    // Ensure the background starts pitch black
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, w, h);
+        function randomChar() {
+            return chars[Math.floor(Math.random() * chars.length)];
+        }
 
-    function matrix() {
-        // Draw a semi-transparent black rectangle over the canvas
-        // This creates the trailing/fading code effect over time
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-        ctx.fillRect(0, 0, w, h);
+        let timeFrame = 0;
 
-        ctx.font = fontSize + 'px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
+        // Uses overlapping sine waves to create dynamic columns of high/low density tracking 'voids'
+        function getVoidedColumn() {
+            for (let i = 0; i < 50; i++) {
+                let testCol = Math.floor(Math.random() * cols);
 
-        ypos.forEach((y, ind) => {
-            // Strictly center the character loosely inside its grid cell
-            const x = ind * fontSize + (fontSize / 2);
-            
-            const headChar = chars[Math.floor(Math.random() * chars.length)];
-            const trailChar = chars[Math.floor(Math.random() * chars.length)];
+                let wave1 = Math.sin((testCol / cols) * Math.PI * 6 + timeFrame * 0.02);
+                let wave2 = Math.sin((testCol / cols) * Math.PI * 4 - timeFrame * 0.015);
+                let wave3 = Math.sin((testCol / cols) * Math.PI * 10 + timeFrame * 0.005);
 
-            // If the drop is currently visible on the screen
-            if (y >= 0) {
-                // 1. Erase the bright white head from the previous frame 
-                // to prevent anti-aliasing artifacts when drawing green over it.
-                ctx.fillStyle = '#000';
-                ctx.fillRect(ind * fontSize, y - fontSize, fontSize, fontSize + 2);
+                // Normalize and exaggerate the contrast so 'lows' become near-zero voids
+                let density = Math.pow((wave1 + wave2 + wave3 + 3) / 6, 3);
 
-                // 2. Draw the standard green character in the trail right behind the new head
-                ctx.fillStyle = '#0c0'; // Matrix green
-                ctx.fillText(trailChar, x, y - fontSize);
+                if (Math.random() < density) {
+                    return testCol;
+                }
+            }
+            return Math.floor(Math.random() * cols); // fallback
+        }
 
-                // 3. Draw the new active 'head' character
-                ctx.fillStyle = '#eaffea'; // Pale bright green / almost white
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = '#0f0'; // Glowing green aura for the head
-                ctx.fillText(headChar, x, y);
-                ctx.shadowBlur = 0; // Reset shadow so standard characters don't glow
+        let grid = [];
+        let drops = [];
+
+        function initGrid() {
+            cols = Math.floor(w / fontSize) + 1;
+            rows = Math.floor(h / fontSize) + 1;
+
+            // Preserve old grid if it exists so resizing is seamless
+            let oldGrid = grid;
+            grid = new Array(cols).fill(null).map((_, x) =>
+                new Array(rows).fill(null).map((_, y) => {
+                    let cell = { char: randomChar(), brightness: 0, decayRate: 0.0125 };
+                    // Keep existing cell state if it was there
+                    if (oldGrid && oldGrid[x] && oldGrid[x][y]) {
+                        cell = oldGrid[x][y];
+                    }
+                    return cell;
+                })
+            );
+
+            // Increase drops based on screen width for density
+            let numDrops = Math.floor(cols * 1.5);
+
+            // Repopulate missing drops or truncate extra drops
+            if (drops.length < numDrops) {
+                let toAdd = numDrops - drops.length;
+                for (let i = 0; i < toAdd; i++) {
+                    drops.push({
+                        col: getVoidedColumn(),
+                        row: Math.random() * -100, // Staggered start off-screen
+                        speed: Math.random() * 1.25 + 0.2, // Variable speeds from 0.2 to 1.45 (reduced max by ~15%)
+                        decayRate: 0.0085 + Math.random() * 0.023 // Slightly faster decay
+                    });
+                }
+            } else if (drops.length > numDrops) {
+                drops.length = numDrops;
+            }
+        }
+
+        initGrid();
+
+        function draw() {
+            timeFrame++;
+
+            // Clear background entirely each frame
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.font = 'bold ' + Math.round(fontSize * 1.2) + 'px "Courier New", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            // 1. Draw and decay trails (flickering the characters as they decay)
+            for (let x = 0; x < cols; x++) {
+                for (let y = 0; y < rows; y++) {
+                    let cell = grid[x][y];
+                    if (cell.brightness > 0) {
+                        // Randomly flick symbols while they're fading
+                        if (Math.random() < 0.04) {
+                            cell.char = randomChar();
+                        }
+                        // Randomly spike brightness of a decaying character to mimic gritty movie artifacts
+                        if (Math.random() < 0.002) {
+                            cell.brightness = Math.min(1.0, cell.brightness + 0.5);
+                        }
+
+                        // Grittier Matrix color palette matching movie reference
+                        let b = cell.brightness;
+                        if (b > 0.85) {
+                            ctx.fillStyle = `rgba(200, 255, 200, ${b})`; // Pale white-green near head
+                        } else if (b > 0.4) {
+                            ctx.fillStyle = `rgba(60, 255, 90, ${b})`; // Vibrant matrix green
+                        } else {
+                            // Darker, grittier green. Boosted alpha so it stays visible longer at low values
+                            ctx.fillStyle = `rgba(15, 140, 45, ${Math.min(1.0, b * 2.0)})`;
+                        }
+
+                        let posX = x * fontSize + (fontSize / 2);
+                        let posY = y * fontSize;
+                        ctx.fillText(cell.char, posX, posY);
+
+                        // Fade symbol out over time based on drop's distinct decay rate
+                        cell.brightness -= cell.decayRate;
+                        if (cell.brightness < 0) cell.brightness = 0;
+                    }
+                }
             }
 
-            // Move the drop down by one cell
-            ypos[ind] = y + fontSize;
+            // 2. Advance drops and draw bright glowing heads
+            for (let i = 0; i < drops.length; i++) {
+                let drop = drops[i];
 
-            // Once the drop goes off-screen, randomly reset it back to the top
-            // Added 0.975 threshold so they don't immediately restart, adding natural variation
-            if (y > h && Math.random() > 0.975) {
-                ypos[ind] = 0;
+                // Protect against dynamic resize shrinking the screen width
+                if (drop.col >= cols) {
+                    drop.col = getVoidedColumn();
+                }
+
+                let prevRow = Math.floor(drop.row);
+                drop.row += drop.speed;
+                let currentRow = Math.floor(drop.row);
+
+                // Light up the trail from previous position to new position
+                // This ensures fast-moving drops leave continuous lines instead of gaps
+                for (let r = prevRow + 1; r <= currentRow; r++) {
+                    if (r >= 0 && r < rows) {
+                        grid[drop.col][r].brightness = 1.0;
+                        grid[drop.col][r].char = randomChar();
+                        grid[drop.col][r].decayRate = drop.decayRate;
+                    }
+                }
+
+                // Draw the bright glowing head at the exact new tip of the drop
+                if (currentRow >= 0 && currentRow < rows) {
+                    let posX = drop.col * fontSize + (fontSize / 2);
+                    let posY = currentRow * fontSize;
+
+                    ctx.fillStyle = '#ffffff'; // Blinding white core for head
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#4f4'; // Large bright green bloom
+
+                    let headChar = grid[drop.col][currentRow].char;
+                    // Give the head an even higher chance to constantly flip
+                    if (Math.random() < 0.1) headChar = randomChar();
+
+                    ctx.fillText(headChar, posX, posY);
+                    ctx.shadowBlur = 0; // Reset blur immediately to not bog down other drawing loops
+                }
+
+                // If the drop falls far off screen, recycle it to the top at a random column and new speed
+                if (currentRow > rows + 20 && Math.random() > 0.9) {
+                    drop.col = getVoidedColumn();
+                    drop.row = Math.random() * -20; // Start slightly above screen
+                    drop.speed = Math.random() * 1.25 + 0.2;
+                    drop.decayRate = 0.0085 + Math.random() * 0.023;
+                }
             }
-        });
-    }
+        }
 
-    // Handle screen resizes dynamically
-    window.addEventListener('resize', () => {
-        w = canvas.width = window.innerWidth;
-        h = canvas.height = window.innerHeight;
-        
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, w, h);
-        
-        const newCols = Math.floor(w / fontSize) + 1;
-        const oldYpos = [...ypos];
-        
-        // Preserve positions of existing drops so the screen doesn't "reset" entirely
-        ypos = Array(newCols).fill(0).map((v, i) => {
-            return oldYpos[i] !== undefined ? oldYpos[i] : (Math.random() * -100 * fontSize);
+        // Adapt to window resizing
+        window.addEventListener('resize', () => {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+            initGrid();
         });
-    });
 
-    // Run the animation loop at approximately 25 frames per second
-    setInterval(matrix, 40);
-</script>
+        // Run animation loop roughly around 28 FPS
+        setInterval(draw, 35);
+    </script>
 </body>
+
 </html>
