@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faithful Matrix Code Rain</title>
+<style>
+    body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000;
+        overflow: hidden;
+    }
+    canvas {
+        display: block;
+    }
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+
+<script>
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+
+    let w = canvas.width = window.innerWidth;
+    let h = canvas.height = window.innerHeight;
+
+    const fontSize = 16;
+    let cols = Math.floor(w / fontSize) + 1;
+    // Start the drops off-screen at random heights to simulate organic rain pouring in
+    let ypos = Array(cols).fill(0).map(() => Math.random() * -100 * fontSize);
+
+    // Authentic Matrix characters
+    // Includes half-width Katakana, Latin letters, and Numerals
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ';
+    const chars = charset.split('');
+
+    // Ensure the background starts pitch black
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+
+    function matrix() {
+        // Draw a semi-transparent black rectangle over the canvas
+        // This creates the trailing/fading code effect over time
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.font = fontSize + 'px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        ypos.forEach((y, ind) => {
+            // Strictly center the character loosely inside its grid cell
+            const x = ind * fontSize + (fontSize / 2);
+            
+            const headChar = chars[Math.floor(Math.random() * chars.length)];
+            const trailChar = chars[Math.floor(Math.random() * chars.length)];
+
+            // If the drop is currently visible on the screen
+            if (y >= 0) {
+                // 1. Erase the bright white head from the previous frame 
+                // to prevent anti-aliasing artifacts when drawing green over it.
+                ctx.fillStyle = '#000';
+                ctx.fillRect(ind * fontSize, y - fontSize, fontSize, fontSize + 2);
+
+                // 2. Draw the standard green character in the trail right behind the new head
+                ctx.fillStyle = '#0c0'; // Matrix green
+                ctx.fillText(trailChar, x, y - fontSize);
+
+                // 3. Draw the new active 'head' character
+                ctx.fillStyle = '#eaffea'; // Pale bright green / almost white
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#0f0'; // Glowing green aura for the head
+                ctx.fillText(headChar, x, y);
+                ctx.shadowBlur = 0; // Reset shadow so standard characters don't glow
+            }
+
+            // Move the drop down by one cell
+            ypos[ind] = y + fontSize;
+
+            // Once the drop goes off-screen, randomly reset it back to the top
+            // Added 0.975 threshold so they don't immediately restart, adding natural variation
+            if (y > h && Math.random() > 0.975) {
+                ypos[ind] = 0;
+            }
+        });
+    }
+
+    // Handle screen resizes dynamically
+    window.addEventListener('resize', () => {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+        
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, h);
+        
+        const newCols = Math.floor(w / fontSize) + 1;
+        const oldYpos = [...ypos];
+        
+        // Preserve positions of existing drops so the screen doesn't "reset" entirely
+        ypos = Array(newCols).fill(0).map((v, i) => {
+            return oldYpos[i] !== undefined ? oldYpos[i] : (Math.random() * -100 * fontSize);
+        });
+    });
+
+    // Run the animation loop at approximately 25 frames per second
+    setInterval(matrix, 40);
+</script>
+</body>
+</html>
