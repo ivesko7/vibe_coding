@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Flythrough</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #pause-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background-color: rgba(0, 50, 0, 0.4);
+            color: #4f4;
+            border: 1px solid #4f4;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            opacity: 0;
+            /* Hidden by default */
+            transition: opacity 0.3s ease, background-color 0.2s;
+            pointer-events: none;
+            /* Ignore clicks while hidden */
+            border-radius: 4px;
+            text-shadow: 0 0 5px #4f4;
+            box-shadow: 0 0 10px rgba(70, 255, 70, 0.3);
+            z-index: 10;
+        }
+
+        #pause-btn.visible {
+            opacity: 1;
+            /* Shows up on hover */
+            pointer-events: auto;
+            /* Enable clicks when visible */
+        }
+
+        #pause-btn.initial-fade {
+            animation: initialFade 3s forwards;
+            pointer-events: auto;
+        }
+
+        @keyframes initialFade {
+            0% {
+                opacity: 0.25;
+            }
+
+            80% {
+                opacity: 0.25;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        #pause-btn:hover {
+            background-color: rgba(0, 100, 0, 0.6);
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="matrix"></canvas>
+    <button id="pause-btn" class="initial-fade">PAUSE</button>
+
+    <script>
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+
+        const resolutionScale = 0.5; // Render at 50% resolution to drastically boost performance
+        let w = canvas.width = Math.floor(window.innerWidth * resolutionScale);
+        let h = canvas.height = Math.floor(window.innerHeight * resolutionScale);
+
+        let fov = h;
+        const base_char_size = 20;
+        const char_spacing = 20;
+        let max_z = fov * 4;
+        let cam_z = 0;
+        const max_drops = 1000; // Increased drop count massively for dense code rain
+        const fly_speed = 4;
+
+        const charset = '0123456789ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝZWMRKVmvzxwc';
+        const chars = charset.split('');
+
+        function randomChar() {
+            return chars[Math.floor(Math.random() * chars.length)];
+        }
+
+        const drops = [];
+
+        function recycleDropFar(drop) {
+            drop.z = cam_z + max_z;
+            let d = drop.z - cam_z;
+            let max_x = (w / 2 + 100) * d / fov;
+            drop.x = (Math.random() - 0.5) * 2 * max_x;
+
+            let top_y = (-h / 2 - 100) * d / fov;
+            drop.head_y = top_y - Math.random() * 2000;
+
+            drop.speed = Math.random() * 5 + 2;
+            drop.length = Math.floor(Math.random() * 30 + 10);
+
+            if (!drop.chars) {
+                drop.chars = new Array(100).fill(null).map(() => randomChar());
+            }
+        }
+
+        function recycleDropTop(drop, d) {
+            let top_y = (-h / 2 - 100) * d / fov;
+            drop.head_y = top_y - Math.random() * 1000;
+
+            let max_x = (w / 2 + 100) * d / fov;
+            drop.x = (Math.random() - 0.5) * 2 * max_x;
+
+            drop.speed = Math.random() * 5 + 2;
+            drop.length = Math.floor(Math.random() * 30 + 10);
+        }
+
+        // Initialize drops uniformly throughout the z-space
+        for (let i = 0; i < max_drops; i++) {
+            let drop = {};
+            recycleDropFar(drop);
+            // Distribute Z uniformly instead of keeping it stacked at max_z initially
+            drop.z = cam_z + Math.random() * max_z;
+            let d = drop.z - cam_z;
+            let max_x = (w / 2 + 100) * d / fov;
+            drop.x = (Math.random() - 0.5) * 2 * max_x;
+            drops.push(drop);
+        }
+
+        function draw() {
+            cam_z += fly_speed;
+
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, w, h);
+
+            // Update drop positions and handle recycling
+            for (let i = 0; i < drops.length; i++) {
+                let drop = drops[i];
+                drop.head_y += drop.speed;
+
+                let d = drop.z - cam_z;
+                if (d < 10) {
+                    recycleDropFar(drop);
+                } else {
+                    let max_x = (w / 2 + 300) * d / fov;
+                    if (Math.abs(drop.x) > max_x) {
+                        recycleDropFar(drop);
+                    } else {
+                        let bottom_y = (h / 2 + 200) * d / fov;
+                        let tail_y = drop.head_y - drop.length * char_spacing;
+                        if (tail_y > bottom_y) {
+                            recycleDropTop(drop, d);
+                        }
+                    }
+                }
+            }
+
+            // Sort back-to-front (descending Z)
+            drops.sort((a, b) => b.z - a.z);
+
+            ctx.textBaseline = 'top';
+            ctx.textAlign = 'center';
+
+            for (let i = 0; i < drops.length; i++) {
+                let drop = drops[i];
+                let d = drop.z - cam_z;
+                let scale = fov / d;
+                let size = base_char_size * scale;
+
+                if (size < 0.5) continue;
+
+                // Drop culling horizontal
+                let screen_x = w / 2 + drop.x * scale;
+                if (screen_x + size / 2 < 0 || screen_x - size / 2 > w) continue;
+
+                // Drop culling vertical
+                let head_char_y = Math.floor(drop.head_y / char_spacing) * char_spacing;
+                let bottom_screen_y = h / 2 + head_char_y * scale;
+                let tail_char_y = head_char_y - drop.length * char_spacing;
+                let top_screen_y = h / 2 + tail_char_y * scale;
+
+                if (top_screen_y > h || bottom_screen_y + size < 0) continue;
+
+                ctx.font = 'bold ' + size + 'px "Courier New", monospace';
+                let head_index = Math.floor(drop.head_y / char_spacing);
+
+                // Randomly flicker one char in the trail
+                if (Math.random() < 0.05) {
+                    let flick_idx = Math.floor(Math.random() * drop.chars.length);
+                    drop.chars[flick_idx] = randomChar();
+                }
+
+                let fade_out = 1.0;
+                // Fade drops out in the distance
+                if (d > max_z * 0.8) {
+                    fade_out = Math.max(0, 1.0 - (d - max_z * 0.8) / (max_z * 0.2));
+                }
+                // Fade drops out incredibly close to camera to avoid sudden giant pops
+                if (d < 100) {
+                    fade_out *= (d / 100);
+                }
+
+                if (fade_out <= 0.01) continue;
+
+                for (let j = 0; j < drop.length; j++) {
+                    let char_index = head_index - j;
+                    let char_y = char_index * char_spacing;
+                    let screen_y = h / 2 + char_y * scale;
+
+                    if (screen_y > h) continue;
+                    if (screen_y + size < 0) break; // Since j goes up, chars go up. We can break safely.
+
+                    let char_arr_index = ((char_index % drop.chars.length) + drop.chars.length) % drop.chars.length;
+                    let char = drop.chars[char_arr_index];
+
+                    let alpha = 1.0 - (j / drop.length);
+                    alpha *= fade_out;
+
+                    if (alpha <= 0.01) continue;
+
+                    // Head char styling
+                    if (j === 0) {
+                        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                        // Only blur when close, saves performance significantly
+                        if (scale > 0.5) {
+                            ctx.shadowBlur = Math.min(15, 10 * scale);
+                            ctx.shadowColor = `rgba(70, 255, 70, ${alpha})`;
+                        } else {
+                            ctx.shadowBlur = 0;
+                        }
+                    }
+                    // Trail styling matches the gritty aesthetic
+                    else if (alpha > 0.8) {
+                        ctx.fillStyle = `rgba(200, 255, 200, ${alpha})`;
+                        ctx.shadowBlur = 0;
+                    } else if (alpha > 0.4) {
+                        ctx.fillStyle = `rgba(60, 255, 90, ${alpha})`;
+                        ctx.shadowBlur = 0;
+                    } else {
+                        ctx.fillStyle = `rgba(15, 140, 45, ${alpha})`;
+                        ctx.shadowBlur = 0;
+                    }
+
+                    ctx.fillText(char, screen_x, screen_y);
+
+                    // Clear shadowBlur so it doesn't leak into early loop breakout
+                    if (j === 0) ctx.shadowBlur = 0;
+                }
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            w = canvas.width = Math.floor(window.innerWidth * resolutionScale);
+            h = canvas.height = Math.floor(window.innerHeight * resolutionScale);
+            fov = h;
+            // Prevent drastic max_z reduction chopping drops on resize
+            max_z = Math.max(max_z, fov * 4);
+        });
+
+        const pauseBtn = document.getElementById('pause-btn');
+        let isPaused = false;
+        let animationInterval;
+
+        // Remove initial fade class after it finishes so standard hover works smoothly
+        setTimeout(() => {
+            pauseBtn.classList.remove('initial-fade');
+        }, 3000);
+
+        window.addEventListener('mousemove', (e) => {
+            // Show button if mouse is within left 10% AND bottom 10% of window
+            if (e.clientX >= 0 && e.clientX < window.innerWidth * 0.1 &&
+                e.clientY > window.innerHeight * 0.9) {
+                pauseBtn.classList.add('visible');
+            } else {
+                pauseBtn.classList.remove('visible');
+            }
+        });
+
+        // Hide button completely if the mouse leaves the browser window
+        document.addEventListener('mouseleave', () => {
+            pauseBtn.classList.remove('visible');
+        });
+
+        pauseBtn.addEventListener('click', () => {
+            isPaused = !isPaused;
+            if (isPaused) {
+                clearInterval(animationInterval);
+                pauseBtn.textContent = 'PLAY';
+            } else {
+                animationInterval = setInterval(draw, 35);
+                pauseBtn.textContent = 'PAUSE';
+            }
+        });
+
+        // Run around 35ms (roughly 28 FPS like the original) for filmic look
+        animationInterval = setInterval(draw, 35);
+    </script>
+</body>
+
+</html>
