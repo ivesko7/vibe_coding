@@ -226,7 +226,7 @@ function updateRippleInterval() {
         // e.g. 4 ripples every 4 seconds = 1 ripple per 1 second (1000ms)
         const intervalMs = (rippleSeconds / rippleCount) * 1000;
         rippleIntervalId = setInterval(() => {
-            if (!zenRipplesEnabled) return;
+            if (!zenRipplesEnabled || document.hidden) return;
 
             // Random position on the canvas
             const x = Math.random() * width * 0.8 + (width * 0.1);
