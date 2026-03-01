@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Tab</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <canvas id="water-canvas"></canvas>
+    <div id="app" class="container">
+        <!-- Settings Button -->
+        <button id="settings-btn" class="settings-btn" title="Settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                </path>
+            </svg>
+        </button>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <h3>Settings</h3>
+                <div class="setting-group">
+                    <label for="column-count">Bookmarks Columns:</label>
+                    <input type="number" id="column-count" min="1" max="12" value="7">
+                </div>
+                <div class="setting-group">
+                    <label for="stone-toggle">Zen Ripples:</label>
+                    <input type="checkbox" id="stone-toggle" checked style="width: auto;">
+                </div>
+                <div class="setting-group" style="justify-content: flex-start; gap: 0.5rem;">
+                    <input type="number" id="ripple-count" min="0" max="50" value="1" style="width: 50px;">
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">ripples per</span>
+                    <input type="number" id="ripple-seconds" min="1" max="120" value="6" style="width: 50px;">
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">secs</span>
+                </div>
+                <button id="save-settings" class="save-btn">Save</button>
+            </div>
+        </div>
+
+        <!-- Rename Bookmark Modal -->
+        <div id="rename-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn rename-close">&times;</span>
+                <h3>Rename Bookmark</h3>
+                <div class="setting-group">
+                    <input type="text" id="rename-input" style="width: 100%;" placeholder="New Name">
+                </div>
+                <button id="save-rename" class="save-btn">Save</button>
+            </div>
+        </div>
+
+        <!-- Custom Context Menu -->
+        <div id="context-menu" class="context-menu" style="display: none;">
+            <div class="menu-item" action="open">Open</div>
+            <div class="menu-item" action="open-new">Open in New Tab</div>
+            <div class="menu-item" action="open-bg">Open in Background</div>
+            <div class="menu-separator"></div>
+            <div class="menu-item" action="rename">Rename</div>
+            <div class="menu-item" action="delete">Delete</div>
+            <div class="menu-separator"></div>
+            <div class="menu-item" action="manage">Bookmarks Manager</div>
+        </div>
+
+        <!-- Time/Date Header -->
+        <header class="header">
+            <h1 id="time">00:00</h1>
+            <h2 id="date">Format Date</h2>
+        </header>
+
+        <!-- Top Sites Section -->
+        <section class="top-sites" id="top-sites-section" style="display: none;">
+            <h3>Recent Sites</h3>
+            <div id="top-sites-container" class="sites-grid"></div>
+        </section>
+
+        <!-- Bookmarks Section -->
+        <section class="bookmarks">
+            <div class="bookmarks-header">
+                <h3 id="bookmarks-title">Bookmarks Bar</h3>
+                <div class="sort-controls">
+                    <label for="sort-type">Sort By:</label>
+                    <select id="sort-type">
+                        <option value="default">Default (Custom Order)</option>
+                        <option value="name">Name</option>
+                        <option value="date">Date Added</option>
+                    </select>
+                    <button id="sort-direction-btn" title="Toggle Sort Direction" style="display: none;">
+                        <svg class="sort-icon asc" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <polyline points="19 12 12 19 5 12"></polyline>
+                        </svg>
+                        <svg class="sort-icon desc" style="display: none;" xmlns="http://www.w3.org/2000/svg" width="16"
+                            height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="19" x2="12" y2="5"></line>
+                            <polyline points="5 12 12 5 19 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="bookmarks-container" class="bookmarks-grid"></div>
+        </section>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
